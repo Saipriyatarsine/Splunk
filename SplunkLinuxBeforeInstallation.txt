@@ -1,0 +1,176 @@
+													 _____       _             _
+													/  ___|     | |           | |
+													\ `--. _ __ | |_   _ _ __ | | __
+													 `--. \ '_ \| | | | | '_ \| |/ /
+													/\__/ / |_) | | |_| | | | |   <
+													\____/| .__/|_|\__,_|_| |_|_|\_\
+													      | |
+													      |_|
+					###### Splunk Enterprise Security POC Setup Video Series #####
+					###### Preparing a System Before Splunk Installation     ######
+					###### Linux Distribution Used Here  - Ubuntu/Amazon Linux AMI  ###
+					#### NOTE: Do not Follow these steps for Production Deployment ####
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Step 1) Update the system
+	# sudo yum update
+
+References :
+> CentOS	 : https://www.centos.org/docs/5/html/yum/sn-updating-your-system.html
+> RedHat	 : https://access.redhat.com/documentation/en-us/red_hat_network_satellite
+							 /5.4/html/reference_guide/chap-reference_guide-package_updater
+> AWS Linux: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/install-updates.html
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Step 2) Install Additional Tools
+# sudo yum install nano wget net1tools tcpdump screen iotop htop ioping ntp lsof bind-utils –y
+
+References :
+> CentOS	 : https://www.centos.org/docs/5/html/5.1/Deployment_Guide/s1-yum-useful-commands.html
+> RedHat	 : https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/6/html/deployment_guide/sec-installing
+> AWS Linux: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/install-software.html
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Step 3)  Update Hostname (remember to use Naming convention )
+- set the name to spl-sh01 (in this example)
+> Edit /etc/sysconfig/network
+> edit /etc/hosts to replace localhost with new name
+> reboot to pick up new name"
+> Validate the hostname is changed
+
+References :
+> CentOS	 : https://support.rackspace.com/how-to/centos-hostname-change/
+> RedHat	 : https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/networking_guide/sec_configuring_host_names_using_hostnamectl
+> AWS Linux: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/set-hostname.html
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Step 4)  Validate NTP Service is setup
+>	sudo service ntpd start
+>	use ntpstat to validate
+
+References :
+> CentOS	 : https://www.digitalocean.com/community/tutorials/how-to-configure-ntp-for-use-in-the-ntp-pool-project-on-centos-7
+> RedHat	 : https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/6/html/deployment_guide/sect-date_and_time_configuration-command_line_configuration-network_time_protocol
+> AWS Linux: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/set-time.html
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Step 5) Create a Splunk user
+>#groupadd splunk -g 1000
+>#useradd splunk -g splunk -u 1000 -g splunk
+>#passwd splunk
+
+References :
+> CentOS	 : https://www.digitalocean.com/community/tutorials/how-to-create-a-sudo-user-on-centos-quickstart
+> RedHat	 : https://www.techrepublic.com/article/how-to-create-users-and-groups-in-linux-from-the-command-line/
+> AWS Linux: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/managing-users.html
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Step 6) Add to sudoers
+visudo
+# User privilege specification
+root        ALL=(ALL:ALL) ALL
+splunk    ALL=(ALL:ALL) ALL
+
+References :
+> vi editor cheat sheet : http://www.lagmonster.org/docs/vi.html
+> CentOS							  : https://www.digitalocean.com/community/tutorials/how-to-edit-the-sudoers-file-on-ubuntu-and-centos
+> RedHat						    : https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux_OpenStack_Platform/2/html/Getting_Started_Guide/ch02s03.html
+> AWS Linux						  : https://www.helicaltech.com/create-multiple-sudo-users-to-ec2-amazon-linux/
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Step 7) Update TimeZone
+> /etc/sysconfig/clock to add ZONE=“Asia/Dubai”
+> sudo ln -sf /usr/share/zoneinfo/Asia/Dubai /etc/localtime
+
+References :
+> CentOS	 : https://chrisjean.com/change-timezone-in-centos/
+> RedHat	 : https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/system_administrators_guide/chap-configuring_the_date_and_time
+> AWS Linux: http://news.mullerdigital.com/2014/01/08/aws-ec2-amazon-linux-ami-change-timezone/
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+*************************** Very Important ***************************
+Step 8)  set ulimits
+add below lines in /etc/security/limits.conf
+splunker hard core 0
+splunker hard maxlogins 10
+splunker soft nofile 65535
+splunker hard nofile 65535
+splunker soft nproc 20480
+splunker hard nproc 20480
+splunker soft fsize unlimited
+splunker hard fsize unlimited
+
+References :
+> CentOS	 : https://serverfault.com/questions/649577/how-can-i-permanently-set-ulimit-n-8192-in-centos-7
+> RedHat	 : https://access.redhat.com/solutions/61334
+> AWS Linux: https://stackoverflow.com/questions/11342167/how-to-increase-ulimit-on-amazon-ec2-instance
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+********************************** Very Important ***************************************
+Step 9)  Disable THP
+
+edit /etc/rc.local and add below lines
+if test -f /sys/kernel/mm/transparent_hugepage/enabled; then
+	echo never >/sys/kernel/mm/transparent_hugepage/enabled
+fi
+if test -f /sys/kernel/mm/transparent_hugepage/defrag; then
+	echo never >/sys/kernel/mm/transparent_hugepage/defrag
+fi
+
+reboot
+
+References :
+> CentOS	 : https://my.vertica.com/docs/8.1.x/HTML/index.htm#Authoring/InstallationGuide/BeforeYouInstall/transparenthugepages.htm
+> RedHat	 : https://access.redhat.com/solutions/46111
+> AWS Linux: https://answers.splunk.com/answers/401192/disable-thp-in-aws-linux-ami.html
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Step 10)  Validate THP
+grep -i HugePages_Total /proc/meminfo
+cat /proc/sys/vm/nr_hugepages
+results should be 0
+
+References :
+> CentOS	 : https://my.vertica.com/docs/8.1.x/HTML/index.htm#Authoring/InstallationGuide/BeforeYouInstall/transparenthugepages.htm
+> RedHat	 : https://access.redhat.com/solutions/46111
+> AWS Linux: https://answers.splunk.com/answers/188875/how-do-i-disable-transparent-huge-pages-thp-and-co.html
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Step 11) DNS
+a) add DNS server in resolve.conf located at /etc/resolv.conf (use below format)
+   			nameserver <ip_of_dns_server>
+eg. ->  nameserver 8.8.8.8
+
+b) if DNS server cannot be specified. Then add the hostname and ip addresses of
+	splunk components in hosts file located at /etc/hosts. With below format
+			<IP_address_of_splunk_components> <hostname>
+eg. -> 172.16.3.28 spl-idx01
+
+References :
+> CentOS	 : https://unix.stackexchange.com/questions/55691/how-to-add-an-ip-to-hostname-file
+> RedHat	 : https://www.tecmint.com/setup-local-dns-using-etc-hosts-file-in-linux/
+> AWS Linux: https://www.makeuseof.com/tag/modify-manage-hosts-file-linux/
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+AWS host - 13.59.36.199
