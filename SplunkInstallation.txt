@@ -21,6 +21,8 @@ wget -O splunk-7.3.1-bd63e13aa157-Linux-x86_64.tgz 'https://www.splunk.com/bin/s
 --------------------------------------------------------------------------------------------------
 Step 3) unpack installation
 sudo tar xvzf splunk_package_name.tgz -C /opt
+ii)Install JDK/JRE
+  apt install default-jdk
 
 Update: change the owenership of /opt/splunk to the user splunker. Execute the below command
 #sudo chown -R splunk:splunk /opt/splunk/
