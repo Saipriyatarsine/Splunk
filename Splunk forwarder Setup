@@ -1,0 +1,544 @@
+ _____       _             _ 
+/  ___|     | |           | | 
+\ `--. _ __ | |_   _ _ __ | | __ 
+ `--. \ '_ \| | | | | '_ \| |/ / 
+/\__/ / |_) | | |_| | | | |   < 
+\____/| .__/|_|\__,_|_| |_|_|\_\ 
+      | | 
+      |_| 
+###### Splunk Enterprise Security POC Setup Video Series ##### 
+###### Preparing a System Before Splunk Installation     ###### 
+###### Linux Distribution Used Here  - Ubuntu/Amazon Linux AMI  ### 
+#### NOTE: Do not Follow these steps for Production Deployment #### 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- 
+Step 1) Update the system 
+# sudo yum update 
+ 
+References : 
+> CentOS : https://www.centos.org/docs/5/html/yum/sn-updating-your-system.html 
+> RedHat : https://access.redhat.com/documentation/en-us/red_hat_network_satellite 
+ /5.4/html/reference_guide/chap-reference_guide-package_updater 
+> AWS Linux: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/install-updates.html 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- 
+Step 2) Install Additional Tools 
+# sudo yum install nano wget net1tools tcpdump screen iotop htop ioping ntp lsof bind-utils –y 
+ 
+References : 
+> CentOS : https://www.centos.org/docs/5/html/5.1/Deployment_Guide/s1-yum-useful-commands.html 
+> RedHat : https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/6/html/deployment_guide/sec-installing 
+> AWS Linux: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/install-software.html 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- 
+Step 3)  Update Hostname (remember to use Naming convention ) 
+- set the name to spl-sh01 (in this example) 
+> Edit /etc/sysconfig/network 
+> edit /etc/hosts to replace localhost with new name 
+> reboot to pick up new name" 
+> Validate the hostname is changed 
+ 
+References : 
+> CentOS : https://support.rackspace.com/how-to/centos-hostname-change/ 
+> RedHat : https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/networking_guide/sec_configuring_host_names_using_hostnamectl 
+> AWS Linux: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/set-hostname.html 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- 
+Step 4)  Validate NTP Service is setup 
+> Sudo service ntpd start 
+> use ntpstat to validate 
+ 
+References : 
+> CentOS : https://www.digitalocean.com/community/tutorials/how-to-configure-ntp-for-use-in-the-ntp-pool-project-on-centos-7 
+> RedHat : https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/6/html/deployment_guide/sect-date_and_time_configuration-command_line_configuration-network_time_protocol 
+> AWS Linux: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/set-time.html 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- 
+Step 5) Create a Splunk user 
+>#groupadd splunker -g 1000 
+>#useradd splunker -g splunker -u 1000 -g splunker 
+>#er 
+ 
+References : 
+> CentOS : https://www.digitalocean.com/community/tutorials/how-to-create-a-sudo-user-on-centos-quickstart 
+> RedHat : https://www.techrepublic.com/article/how-to-create-users-and-groups-in-linux-from-the-command-line/ 
+> AWS Linux: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/managing-users.html 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- 
+Step 6) Add to sudoers 
+visudo 
+# User privilege specificationpasswd splunk 
+root        ALL=(ALL:ALL) ALL 
+splunk    ALL=(ALL:ALL) ALL 
+ 
+References : 
+> vi editor cheat sheet : http://www.lagmonster.org/docs/vi.html 
+> CentOS   : https://www.digitalocean.com/community/tutorials/how-to-edit-the-sudoers-file-on-ubuntu-and-centos 
+> RedHat     : https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux_OpenStack_Platform/2/html/Getting_Started_Guide/ch02s03.html 
+> AWS Linux   : https://www.helicaltech.com/create-multiple-sudo-users-to-ec2-amazon-linux/ 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- 
+Step 7) Update TimeZone 
+> /etc/sysconfig/clock to add ZONE=“Asia/Dubai” 
+> sudo ln -sf /usr/share/zoneinfo/Asia/Dubai /etc/localtime 
+ 
+References : 
+> CentOS : https://chrisjean.com/change-timezone-in-centos/ 
+> RedHat : https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/system_administrators_guide/chap-configuring_the_date_and_time 
+> AWS Linux: http://news.mullerdigital.com/2014/01/08/aws-ec2-amazon-linux-ami-change-timezone/ 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- 
+*************************** Very Important *************************** 
+Step 8)  set ulimits 
+add below lines in /etc/security/limits.conf 
+splunker hard core 0 
+splunker hard maxlogins 10 
+splunker soft nofile 65535 
+splunker hard nofile 65535 
+splunker soft nproc 20480 
+splunker hard nproc 20480 
+splunker soft fsize unlimited 
+splunker hard fsize unlimited 
+ 
+References : 
+> CentOS : https://serverfault.com/questions/649577/how-can-i-permanently-set-ulimit-n-8192-in-centos-7 
+> RedHat : https://access.redhat.com/solutions/61334 
+> AWS Linux: https://stackoverflow.com/questions/11342167/how-to-increase-ulimit-on-amazon-ec2-instance 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- 
+********************************** Very Important *************************************** 
+Step 9)  Disable THP 
+ 
+edit /etc/rc.local and add below lines 
+if test -f /sys/kernel/mm/transparent_hugepage/enabled; then 
+echo never >/sys/kernel/mm/transparent_hugepage/enabled 
+fi 
+if test -f /sys/kernel/mm/transparent_hugepage/defrag; then 
+echo never >/sys/kernel/mm/transparent_hugepage/defrag 
+fi 
+ 
+reboot 
+ 
+References : 
+> CentOS : https://my.vertica.com/docs/8.1.x/HTML/index.htm#Authoring/InstallationGuide/BeforeYouInstall/transparenthugepages.htm 
+> RedHat : https://access.redhat.com/solutions/46111 
+> AWS Linux: https://answers.splunk.com/answers/401192/disable-thp-in-aws-linux-ami.html 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- 
+Step 10)  Validate THP 
+grep -i HugePages_Total /proc/meminfo 
+cat /proc/sys/vm/nr_hugepages 
+results should be 0 
+ 
+References : 
+> CentOS : https://my.vertica.com/docs/8.1.x/HTML/index.htm#Authoring/InstallationGuide/BeforeYouInstall/transparenthugepages.htm 
+> RedHat : https://access.redhat.com/solutions/46111 
+> AWS Linux: https://answers.splunk.com/answers/188875/how-do-i-disable-transparent-huge-pages-thp-and-co.html 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- 
+Step 11) DNS 
+a) add DNS server in resolve.conf located at /etc/resolv.conf (use below format) 
+   nameserver <ip_of_dns_server> 
+eg. ->  nameserver 8.8.8.8 
+ 
+b) if DNS server cannot be specified. Then add the hostname and ip addresses of 
+splunk components in hosts file located at /etc/hosts. With below format 
+<IP_address_of_splunk_components> <hostname> 
+eg. -> 172.16.3.28 spl-idx01 
+ 
+ 
+0 
+ 
+you need to make this parameter no_root_squash on /etc/exports 
+ 
+vi /etc/exports 
+no_root_squash 
+wq 
+Good luck. 
+ 
+References : 
+> CentOS : https://unix.stackexchange.com/questions/55691/how-to-add-an-ip-to-hostname-file 
+> RedHat : https://www.tecmint.com/setup-local-dns-using-etc-hosts-file-in-linux/ 
+> AWS Linux: https://www.makeuseof.com/tag/modify-manage-hosts-file-linux/ 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- 
+
+
+                              _____       _             _ 
+                              /  ___|     | |           | | 
+                              \ `--. _ __ | |_   _ _ __ | | __ 
+                              `--. \ '_ \| | | | | '_ \| |/ / 
+                              /\__/ / |_) | | |_| | | | |   < 
+                              \____/| .__/|_|\__,_|_| |_|_|\_\ 
+                                   | | 
+                                   |_| 
+               ###### Splunk Enterprise Security POC Setup Video Series ###### 
+               ######               Installing Splunk                   ###### 
+               #### NOTE: Do not Follow these steps for Production Deployment #### 
+ 
+-------------------------------------------------------------------------------------------------- 
+Step 1) Login into www.splunk.com with Splunk login credentials 
+ 
+-------------------------------------------------------------------------------------------------- 
+Step 2) Download as required: (depending upon the host Operating System) 
+> Splunk linux command for splunk version 7.3.1 
+wget -O splunk-7.3.1-bd63e13aa157-Linux-x86_64.tgz 'https://www.splunk.com/bin/splunk/DownloadActivityServlet?architecture=x86_64&platform=linux&version=7.3.1&product=splunk&filename=splunk-7.3.1-bd63e13aa157-Linux-x86_64.tgz&wget=true' 
+ 
+-------------------------------------------------------------------------------------------------- 
+Step 3) unpack installation 
+sudo tar xvzf splunk_package_name.tgz -C /opt 
+ 
+Update: change the owenership of /opt/splunk to the user splunker. Execute the below command 
+#sudo chown -R splunker:splunker /opt/splunk/ 
+ 
+References : 
+> Splunk Documentation : http://docs.splunk.com/Documentation/Splunk/7.1.1/Installation/InstallonLinux 
+---------------------------------------------------------------------------------------------------- 
+Step 4) start splunk for first time 
+Accept without checking the logs 
+sudo /opt/splunk/bin/splunk start --accept-license 
+ 
+For checking the changes in logs 
+$SPLUNK_HOME/bin/splunk start --accept-license --answer-no 
+ 
+References : 
+> Splunk Documentation : http://docs.splunk.com/Documentation/Splunk/7.1.1/Installation/StartSplunkforthefirsttime#Accept_the_Splunk_license_automatically_when_starting_for_the_first_time 
+--------------------------------------------------------------------------------------------------- 
+Step 5) Enable Splunk to start at reboot 
+sudo /opt/splunk/bin/splunk enable boot-start -user splunker 
+ 
+References : 
+> Splunk Documentation : https://docs.splunk.com/Documentation/Splunk/7.1.1/Admin/ConfigureSplunktostartatboottime 
+ 
+ 
+>>If you get stuck, leverage the below resources: 
+> Splunk Answers: https://answers.splunk.com/index.html 
+> Splunk Documentation: http://docs.splunk.com/Documentation/Splunk 
+
+
+
+                                   _____       _             _ 
+                                  /  ___|     | |           | | 
+                                  \ `--. _ __ | |_   _ _ __ | | __ 
+                                  `--. \ '_ \| | | | | '_ \| |/ / 
+                                  /\__/ / |_) | | |_| | | | |   < 
+                                  \____/| .__/|_|\__,_|_| |_|_|\_\ 
+                                       | | 
+                                       |_| 
+             ###### Splunk Enterprise Security POC Setup Video Series       ###### 
+             ###### Verifying Communications & Connecting Splunk Components ###### 
+ ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- 
+** HouseKeeping - (Optional) -> Change Full Name in Splunk GUI to Identify SH/IDX** 
+ Step 1) Verify Communication between Search Head & Indexer 
+ use nc(netcat) command to validate port communication 
+ $ nc -zv <dest_ip> <dest_port> 
+ 
+                                  Splunk Port Matrix 
+    |---------------------------------------------------------------------------| 
+    | Communication                   | Value |  Protocol  |   Direction        | 
+    |---------------------------------------------------------------------------| 
+    | Search Head to Indexer(mgmt)    | 8089  |  TCP       |   Bi-Direction Port| 
+    | UF/SH to Indexer                | 9997  |  TCP       |   Single Direction | 
+ 
+ References : 
+ > Splunk Documentation     : https://docs.splunk.com/Documentation/Splunk/7.1.1/InheritedDeployment/Ports 
+ > Splunk Answers           : https://answers.splunk.com/answers/118859/diagram-of-splunk-common-network-ports.html 
+ > Open Internal Host Ports : https://www.cyberciti.biz/faq/howto-rhel-linux-open-port-using-iptables/ 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- 
+Step 2) Enable HTTPS on Splunk Search Head & Indexer 
+ 
+Login to GUI; Settings->Server Settings-> General Settings-> Enable SSL (HTTPS) in Splunk Web? 
+ 
+References : 
+> Splunk Documentation : https://answers.splunk.com/answers/118859/diagram-of-splunk-common-network-ports.html 
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------- 
+ 
+Step 3) Enable receiving on Indexer 
+ 
+Login to GUI; Settings->Forwarding and Receiving -> Configure Receiving 
+ 
+References: 
+> Splunk Documentation : https://docs.splunk.com/Documentation/Splunk/7.1.1/Forwarding/Enableareceiver 
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------- 
+ 
+Step 4) Forward Internal Logs from Search Head to Indexer & Validate 
+ 
+edit the conf file /opt/splunk/etc/system/local/outputs.conf on SH & add below 
+ 
+# Turn off indexing on the search head & forward SH logs to indexer 
+[indexAndForward] 
+index = false 
+ 
+[tcpout] 
+defaultGroup = my_search_peers 
+forwardedindex.filter.disable = true 
+indexAndForward = false 
+ 
+[tcpout:my_search_peers] 
+server=<IP_Address_Indexer1>:9997,<IP_Address_Indexer2>:9997 
+ 
+References: 
+> Splunk Documentation : https://docs.splunk.com/Documentation/Splunk/7.1.1/DistSearch/Forwardsearchheaddata 
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------- 
+ 
+Step 5) Configure Indexer as a Search Peer (Point Search Head to Search Data in Indexer) 
+ 
+To specify the search peers: 
+ 
+1. Log into Splunk Web on the search head and click Settings at the top of the page. 
+2. Click Distributed search in the Distributed Environment area. 
+3. Click Search peers. 
+4. On the Search peers page, select New. 
+5. Specify the search peer, along with any authentication settings. 
+Note: You must precede the search peer's host name or IP address with the URI scheme, either "http" or "https". 
+6. Click Save. 
+7. Repeat for each of the search head's search peers. 
+ 
+ 
+References: 
+> Splunk Documentation : https://docs.splunk.com/Documentation/Splunk/7.1.1/DistSearch/Configuredistributedsearch 
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------- 
+ 
+ 
+Step 6) Enable Search Head as License Master and add Indexer as License Slave 
+ 
+1. On the instance that you want to configure as a license slave, 
+   log into Splunk Web and navigate to Settings > Licensing. 
+2. Click Change to Slave. 
+3. Switch the radio button from Designate this Splunk instance as the master 
+   license server to Designate a different Splunk instance as the master license server. 
+4. Specify the license master to which this license slave should report. 
+   You must provide either an IP address or a hostname and the Splunk management port, 
+   which is 8089 by default. 
+5. Click Save. 
+6. Restart Splunk Enterprise. 
+ 
+ 
+References: 
+> Splunk Documentation : https://docs.splunk.com/Documentation/Splunk/7.1.1/Admin/Configurealicenseslave 
+
+
+_____       _             _ 
+/  ___|     | |           | | 
+\ `--. _ __ | |_   _ _ __ | | __ 
+`--. \ '_ \| | | | | '_ \| |/ / 
+/\__/ / |_) | | |_| | | | |   < 
+\____/| .__/|_|\__,_|_| |_|_|\_\ 
+   | | 
+   |_| 
+ 
+###### Splunk Enterprise Security POC Setup Video Series      ###### 
+######          Getting Data with Syslog                      ###### 
+###### *** Do Not Use these steps for Production Environment **###### 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- 
+Step1) Configure Authentication data to be sent over Syslog on Linux 
+ a) Install the Linux/UNIX Add-on on Indexer & Search Head 
+  https://splunkbase.splunk.com/app/833/ 
+ 
+ b) Enable Receiving on the Indexer 
+ 
+ b) edit rsyslog.conf using your choice of text editor 
+ $sudo vim /etc/rsyslog.conf 
+ 
+ c) Add below line in the end of file & Save 
+ authpriv.* @<splunk_idx_private_ip>:5514 
+ 
+ d) Restart rsyslog 
+ $sudo service rsyslog restart 
+ 
+Step2) Configure Network Input on Splunk 
+ 
+Commands Reference: 
+netstat -tunlp 
+tcpdump -i <interface> -nn port <port_no> 
+ 
+============================================================================================================= 
+ 
+##### Option2 - Write Syslog Data to Local File ###### 
+ 
+Step1) Configure rsyslog.conf on Splunk instance (indexer in our case) 
+ 
+# log every host in its own directory 
+$template RemoteHost,"/opt/syslog/%fromhost-ip%/%syslogfacility-text%-%$year%-%$month%-%$day%" 
+ 
+ 
+# Remote Logging 
+$RuleSet remote 
+*.* ?RemoteHost 
+ 
+### Listeners 
+# bind ruleset to tcp listener 
+$InputTCPServerBindRuleset remote 
+# and activate it: 
+$InputTCPServerRun 5514 
+ 
+$InputUDPServerBindRuleset remote 
+$UDPServerRun 5514 
+ 
+**Refer to provided rsyslog.conf file with all settings. 
+ 
+ 
+ 
+Reference: 
+> Splunk Docs: http://docs.splunk.com/Documentation/Splunk/7.1.2/Data/MonitorWindowseventlogdata 
+
+
+                                   _____       _             _ 
+                                  /  ___|     | |           | | 
+                                  \ `--. _ __ | |_   _ _ __ | | __ 
+                                  `--. \ '_ \| | | | | '_ \| |/ / 
+                                  /\__/ / |_) | | |_| | | | |   < 
+                                  \____/| .__/|_|\__,_|_| |_|_|\_\ 
+                                       | | 
+                                       |_| 
+             ###### Splunk Enterprise Security POC Setup Video Series       ###### 
+             ###### Setting up Universal Forwarders                         ###### 
+             ###### *** Do Not Use these steps for Production Environment **###### 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- 
+Step1) Download & Install Universal Forwarder on linux/Windows 
+- Login into www.splunk.com with Splunk login credentials 
+- Download the relevant Universal Forwarder Binary (Directly or use wget) 
+ 
+wget -O splunkforwarder-7.1.1-8f0ead9ec3db-Linux-x86_64.tgz 'https://www.splunk.com/bin/splunk/DownloadActivityServlet?architecture=x86_64&platform=linux&version=7.1.1&product=universalforwarder&filename=splunkforwarder-7.1.1-8f0ead9ec3db-Linux-x86_64.tgz&wget=true' 
+ 
+-------------------------------------------------------------------------------------------------- 
+Step2) Install the Universal Forwarder 
+tar xvzf splunk_UF_package_name -C /opt 
+ 
+References: 
+> Splunk Documentation: http://docs.splunk.com/Documentation/Forwarder/7.1.1/Forwarder/Installanixuniversalforwarder 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- 
+Step3) Start UF & Enable it to start at boot-time 
+  - Go to the installation folder /opt/<install_dir>/bin and execute below commands 
+./splunk start 
+ 
+./splunk enable boot-start 
+ 
+References: 
+http://docs.splunk.com/Documentation/Forwarder/7.1.1/Forwarder/Installanixuniversalforwarder 
+ 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- 
+Step4) Configure UF to talk to Deployment server 
+- Go to the installation folder /opt/<install_dir>/bin and execute below commands 
+ 
+./splunk set deploy-poll <IP_DeploymentServer>:8089 
+./splunk restart 
+ 
+./splunk set deploy-poll 172.31.11.210:8089 
+ 
+References: 
+> Splunk Documentation: http://docs.splunk.com/Documentation/Forwarder/7.1.1/Forwarder/Configuretheuniversalforwarder 
+> Splunk Documentation: http://docs.splunk.com/Documentation/Splunk/7.1.1/Updating/Configuredeploymentclients 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- 
+Step5) Validate if Universal Forwarder shows up in Deployment Server & Manage 
+      configuration from Deployment Server 
+ 
+References: 
+> Splunk Documentation: http://docs.splunk.com/Documentation/Splunk/7.1.1/Updating/Configuredeploymentclients#View_clients_from_the_deployment_server 
+ 
+ 
+>>If you get stuck, leverage the below resources: 
+> Splunk Answers: https://answers.splunk.com/index.html 
+> Splunk Documentation: http://docs.splunk.com/Documentation/Splunk 
+ 
+ 
+                _____       _             _ 
+                /  ___|     | |           | | 
+                \ `--. _ __ | |_   _ _ __ | | __ 
+                `--. \ '_ \| | | | | '_ \| |/ / 
+                /\__/ / |_) | | |_| | | | |   < 
+                \____/| .__/|_|\__,_|_| |_|_|\_\ 
+                    | | 
+                    |_| 
+                ###### Splunk Enterprise Security POC Setup Video Series      ###### 
+                ###### Setting up Universal Forwarders- pt2                   ###### 
+                ###### *** Do Not Use these steps for Production Environment **###### 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- 
+Step1) Validate the Deployment Clients present in the Deployment Server viewing 
+-> Settings -> Forwarder Management 
+ 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- 
+Step2) Create a Base App, which can be used to update base configs across all deployment clients (eg. Indexer info) 
+  -> create a folder (lets say) uf_base/local under $SPLUNK_HOME/etc/deployment-apps folder on deployment Server 
+  -> create files outputs.conf & deploymentclient.conf 
+ 
+  outputs.conf 
+  ------------ 
+ 
+  [tcpout] 
+  defaultGroup = default-autolb-group1 
+ 
+  [tcpout-server://<indexerIP>:9997] 
+ 
+  [tcpout-server://<IndexeIP>:9997] 
+ 
+  [tcpout:default-autolb-group1] 
+  disabled = false 
+  server = <indexerIP>:9997,<indexerIP>9997 
+  ------------------------------------------- 
+  .......................................... 
+  deploymentclient.conf 
+  ----------------------- 
+  [deployment-client] 
+  phoneHomeIntervalInSecs=35 
+ 
+  [target-broker:deploymentServer] 
+  targetUri = <SH_IP>:8089 
+  --------------------------- 
+ 
+  -> Reload the Deployment SERVER 
+  #./splunk reload deploy-server 
+ 
+ 
+References: 
+> Splunk Documentation: http://docs.splunk.com/Documentation/Splunk/7.1.2/Updating/Deploymentserverarchitecture 
+> Splunk Documentation: http://docs.splunk.com/Documentation/Forwarder/7.1.1/Forwarder/Configuretheuniversalforwarder 
+> Splunk Documentation: http://docs.splunk.com/Documentation/Splunk/7.1.1/Updating/Configuredeploymentclients 
+ 
+Step3) Create a Server Class in deployment server to distribute the uf_base App 
+ 
+References: 
+> Splunk Documentation: http://docs.splunk.com/Documentation/Splunk/7.1.2/Updating/Definedeploymentclasses 
+ 
+Step4) Validate is App is shipped to the Deployment Client 
+ 
+ 
+Script to install Splunk Agent on remote machine: 
+(better script is updated on our docs page - https://docs.splunk.com/Documentation/Forwarder/7.2.3/Forwarder/Installanixuniversalforwarderremotelywithastaticconfiguration) 
+ 
+#!/bin/sh 
+HOSTS_FILE="/locationforthisscript/remhosts" 
+WGET_CMD="wget -O splunkforwarder-7.2.3-06d57c595b80-Linux-x86_64.tgz 'https://clicktime.symantec.com/3ENArkPfsDwQjZa3tKSgoEA7Vc?u=https%3A%2F%2Fwww.splunk.com%2Fbin%2Fsplunk%2FDownloadActivityServlet%3Farchitecture%3Dx86_64%26platform%3Dlinux%26version%3D7.2.3%26product%3Duniversalforwarder%26filename%3Dsplunkforwarder-7.2.3-06d57c595b80-Linux-x86_64.tgz%26wget%3Dtrue%27%2522 
+INSTALL_FILE=" splunkforwarder-7.2.3-06d57c595b80-Linux-x86_64.tgz " 
+DEPLOY_SERVER="DeploymentServerIP:8089" 
+INDEX_SERVER="IndexerServerIP:9997" 
+PASSWORD="splunk123" 
+REMOTE_SCRIPT=" 
+cd /opt 
+sudo $WGET_CMD 
+sudo tar -xzf $INSTALL_FILE 
+   
+ sudo useradd -m -r splunk 
+sudo chown -R splunk:splunk /opt/splunkforwarder 
+ 
+ sudo -u splunk /opt/splunkforwarder/bin/splunk start --accept-license --answer-yes --auto-ports --no-prompt 
+sudo -u splunk /opt/splunkforwarder/bin/splunk set deploy-poll \"$DEPLOY_SERVER\" --accept-license --answer-yes --auto-ports --no-prompt  -auth admin:changeme 
+sudo -u splunk /opt/splunkforwarder/bin/splunk forward-server \"$INDEX_SERVER\" -auth admin:changeme 
+sudo -u splunk /opt/splunkforwarder/bin/splunk enable boot-start 
+sudo -u splunk /opt/splunkforwarder/bin/splunk edit user admin -password $PASSWORD -auth admin:changeme 
+sudo -u splunk /opt/splunkforwarder/bin/splunk restart 
+" 
+echo "In 5 seconds, will run the following script on each remote host:" 
+echo 
+echo "====================" 
+echo "$REMOTE_SCRIPT" 
+echo "====================" 
+echo 
+sleep 5 
+echo "Reading host logins from $HOSTS_FILE" 
+echo 
+echo "Starting." 
+ 
+ for DST in `cat "$HOSTS_FILE"`; do 
+   if [ -z "$DST" ]; then 
+     continue; 
+   fi 
+   echo "---------------------------" 
+   echo "Installing to $DST" 
+ 
+   # run script on remote host - you will be prompted for the password 
+   sudo ssh -t "$DST" "$REMOTE_SCRIPT" 
+ 
+ done   
+ echo "---------------------------" 
+echo "Done" 
+ 
+
